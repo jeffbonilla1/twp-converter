@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word to EPUB Converter — The Writers Precinct</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1714;
+    --paper: #f8f4ee;
+    --rule: #c8b99a;
+    --accent: #b8860b;
+    --muted: #7a7068;
+    --success: #2a6b6e;
+    --surface: #e8e0d4;
+    --mono: 'IBM Plex Mono', monospace;
+    --serif: 'Crimson Pro', serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .masthead {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 18px 40px;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    border-bottom: 3px solid var(--accent);
+  }
+  .masthead-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--paper);
+    text-decoration: none;
+    letter-spacing: 0.5px;
+  }
+  .masthead-title span { color: var(--accent); }
+  .masthead-title:hover { opacity: 0.85; }
+  .masthead-rule {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #6a6058;
+    flex: 1;
+    letter-spacing: 0.1em;
+  }
+  .masthead-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-decoration: none;
+  }
+  .masthead-badge:hover { text-decoration: underline; }
+
+  /* MAIN LAYOUT */
+  .shell {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 56px 24px 80px;
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 32px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  h1 span {
+    color: var(--accent);
+  }
+  .subtitle {
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* FORM SECTIONS */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .field-group {
+    margin-bottom: 28px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    background: white;
+    border: 1.5px solid var(--rule);
+    border-radius: 0;
+    padding: 14px 16px;
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus {
+    border-color: var(--ink);
+  }
+  input[type="text"]::placeholder {
+    color: var(--rule);
+    font-style: italic;
+  }
+
+  /* DROP ZONE */
+  .drop-zone {
+    border: 2px dashed var(--rule);
+    background: white;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    margin-bottom: 32px;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--ink);
+    background: var(--surface);
+  }
+  .drop-zone.has-file {
+    border-color: var(--success);
+    border-style: solid;
+    background: #f0f7f4;
+  }
+  .drop-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.5;
+  }
+  .drop-primary {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .drop-secondary {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .drop-file-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--success);
+    margin-top: 8px;
+  }
+  input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* CONVERT BUTTON */
+  .btn-convert {
+    width: 100%;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-convert:hover:not(:disabled) {
+    background: var(--accent);
+  }
+  .btn-convert:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* STATUS AREA */
+  .status-area {
+    margin-top: 24px;
+    min-height: 28px;
+  }
+  .status-msg {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 12px 16px;
+    display: none;
+  }
+  .status-msg.working {
+    display: block;
+    background: var(--surface);
+    color: var(--muted);
+    border-left: 3px solid var(--rule);
+  }
+  .status-msg.error {
+    display: block;
+    background: #fdf0ed;
+    color: var(--accent);
+    border-left: 3px solid var(--accent);
+  }
+  .status-msg.success {
+    display: block;
+    background: #f0f7f4;
+    color: var(--success);
+    border-left: 3px solid var(--success);
+  }
+
+  /* CHAPTER PREVIEW */
+  .chapter-preview {
+    display: none;
+    margin-top: 32px;
+    border: 1px solid var(--rule);
+  }
+  .preview-header {
+    background: var(--surface);
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+  }
+  .chapter-list {
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .chapter-item {
+    padding: 7px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+    border-bottom: 1px solid #e8e2d8;
+    display: flex;
+    gap: 12px;
+  }
+  .chapter-item:last-child { border-bottom: none; }
+  .ch-num {
+    color: var(--muted);
+    min-width: 28px;
+  }
+
+  /* DOWNLOAD ZONE */
+  .download-zone {
+    display: none;
+    margin-top: 24px;
+    background: var(--ink);
+    padding: 24px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .download-zone.visible {
+    display: flex;
+  }
+  .dl-info {
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .dl-filename {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .dl-meta {
+    color: #888;
+    font-size: 11px;
+  }
+  .btn-download {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-download:hover {
+    background: #a03826;
+  }
+
+  /* PROGRESS BAR */
+  .progress-wrap {
+    display: none;
+    height: 3px;
+    background: var(--surface);
+    margin-top: 16px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* FOOTER NOTE */
+  .footer-note {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.8;
+    letter-spacing: 0.03em;
+  }
+  .footer-note a {
+    color: var(--muted);
+    text-decoration: underline;
+  }
+
+  /* VERIFY SECTION */
+  .verify-section {
+    margin-top: 48px;
+    border-top: 2px solid var(--ink);
+    padding-top: 32px;
+  }
+  .verify-intro {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+    margin: 14px 0 28px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border-left: 3px solid var(--rule);
+  }
+  .verify-grid {
+    display: grid;
+    gap: 2px;
+  }
+  .verify-card {
+    display: flex;
+    gap: 0;
+    background: white;
+    border: 1px solid var(--rule);
+    margin-bottom: 6px;
+  }
+  .verify-card-tip {
+    background: #fdf8f0;
+    border-color: #d4a847;
+  }
+  .verify-card-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--paper);
+    background: var(--ink);
+    padding: 16px 14px;
+    min-width: 44px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    letter-spacing: 0.05em;
+  }
+  .verify-card-tip .verify-card-num {
+    background: #d4a847;
+  }
+  .verify-card-body {
+    padding: 16px 18px;
+    flex: 1;
+  }
+  .verify-card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .verify-card-text {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .verify-card-text a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+  }
+  .verify-card-text a:hover {
+    opacity: 0.75;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .working-dot {
+    display: inline-block;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <a class="masthead-title" href="https://thewritersprecinct.com">The <span>Writers</span> Precinct</a>
+  <div class="masthead-rule">Member Tool — Word to EPUB Converter</div>
+  <a href="https://thewritersprecinct.com" class="masthead-badge">← Back to Hub</a>
+</div>
+
+<div class="shell">
+
+  <div class="page-header">
+    <div class="eyebrow">Member Tool · Bonus Feature</div>
+    <h1>Word <span>→</span> EPUB</h1>
+    <div class="subtitle">
+      Upload your .docx manuscript and download a KDP-ready epub in seconds.<br>
+      Chapters are detected automatically using Heading 1 styles in Word.<br><br>
+      <span style="color: var(--accent); font-weight: 600;">No Fiverr. No formatting fees. No waiting. Convert as many times as you need.</span>
+    </div>
+  </div>
+
+  <!-- FIELDS -->
+  <div class="field-group">
+    <div class="section-label">Book Title</div>
+    <input type="text" id="bookTitle" placeholder="Enter the title as it should appear in the epub…">
+  </div>
+
+  <div class="field-group">
+    <div class="section-label">Author Name</div>
+    <input type="text" id="authorName" placeholder="Full name or pen name…">
+  </div>
+
+  <!-- DROP ZONE -->
+  <div class="section-label">Manuscript File (.docx)</div>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".docx">
+    <span class="drop-icon">📄</span>
+    <div class="drop-primary" id="dropPrimary">Drop your .docx file here</div>
+    <div class="drop-secondary" id="dropSecondary">or click to browse</div>
+    <div class="drop-file-name" id="dropFileName" style="display:none"></div>
+  </div>
+
+  <!-- CHAPTER PREVIEW -->
+  <div class="chapter-preview" id="chapterPreview">
+    <div class="preview-header">
+      <span>Detected Chapters</span>
+      <span id="chapterCount"></span>
+    </div>
+    <div class="chapter-list" id="chapterList"></div>
+  </div>
+
+  <!-- CONVERT BUTTON -->
+  <button class="btn-convert" id="convertBtn" disabled>
+    Convert to EPUB
+  </button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-area">
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <!-- DOWNLOAD -->
+  <div class="download-zone" id="downloadZone">
+    <div class="dl-info">
+      <div class="dl-filename" id="dlFilename"></div>
+      <div class="dl-meta" id="dlMeta"></div>
+    </div>
+    <a class="btn-download" id="downloadBtn" href="#">↓ Download EPUB</a>
+  </div>
+
+  <!-- VERIFY SECTION -->
+  <div class="verify-section" id="verifySection">
+    <div class="verify-header">
+      <div class="section-label" style="margin-bottom:0">Before You Upload to KDP — Verify Your EPUB</div>
+    </div>
+    <div class="verify-intro">
+      Always proof your epub before publishing. The most common issue: a paragraph accidentally styled as Heading 1 in Word will appear as a false chapter break. Check the chapter list above first, then verify the full file using one of these methods.
+    </div>
+
+    <div class="verify-grid">
+
+      <div class="verify-card">
+        <div class="verify-card-num">01</div>
+        <div class="verify-card-body">
+          <div class="verify-card-title">Send to Your Kindle App</div>
+          <div class="verify-card-text">
+            The closest thing to seeing your finished book. Email the .epub as an attachment to your Send-to-Kindle address — find it at <a href="https://www.amazon.com/hz/mycd/myx#/home/devices/1" target="_blank" rel="noopener">amazon.com → Account → Content &amp; Devices → Devices</a>. Your sending address must be on the Approved Senders list under Preferences → Personal Document Settings. Allow 2–5 minutes after sending, then sync your Kindle app.
+          </div>
+        </div>
+      </div>
+
+      <div class="verify-card">
+        <div class="verify-card-num">02</div>
+        <div class="verify-card-body">
+          <div class="verify-card-title">EPUBReader — In Your Browser</div>
+          <div class="verify-card-text">
+            Fastest option, no install needed. Go to <a href="https://www.epubread.com" target="_blank" rel="noopener">epubread.com</a>, upload your file, and it renders instantly. Good for a quick chapter structure check. Also available as a <a href="https://chromewebstore.google.com/detail/epubreader/jhhclmfgfllimlhabjkgkeebkbiadflb" target="_blank" rel="noopener">Chrome extension</a> if you prefer reading locally.
+          </div>
+        </div>
+      </div>
+
+      <div class="verify-card">
+        <div class="verify-card-num">03</div>
+        <div class="verify-card-body">
+          <div class="verify-card-title">Kindle Previewer — See It Before KDP Does</div>
+          <div class="verify-card-text">
+            Amazon's own free desktop tool shows you exactly how your book will look to readers before you publish. Download at <a href="https://www.amazon.com/Kindle-Previewer/b?ie=UTF8&node=21381691011" target="_blank" rel="noopener">amazon.com/kindlepreviewer</a>. Open your .epub, flip through every chapter, and check the auto-generated table of contents. If it looks right here, it will look right on KDP.
+          </div>
+        </div>
+      </div>
+
+      <div class="verify-card verify-card-tip">
+        <div class="verify-card-num">!</div>
+        <div class="verify-card-body">
+          <div class="verify-card-title">Fixing Chapter Errors in Word</div>
+          <div class="verify-card-text">
+            If a section is showing up as a false chapter, open your .docx in Word, click on the problem paragraph, and check the Styles panel in the Home tab. It will show "Heading 1" — change it to "Normal" or the appropriate body style, save the file, and re-upload here.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Conversion runs entirely in your browser. No file is ever uploaded to any server.<br>
+    Chapter detection requires Heading 1 styles applied in Word. Print interior formatting coming soon.<br>
+    A <a href="https://thewritersprecinct.com">The Writers Precinct</a> member tool — included with every subscription.
+  </div>
+
+</div>
+
+<!-- JSZip for browser-side epub packaging -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module">
+
+// ─────────────────────────────────────────────────────────
+// HAND-ROLLED EPUB BUILDER (browser-safe, uses JSZip)
+// epub is just a zip file with a specific folder structure
+// ─────────────────────────────────────────────────────────
+async function buildEpub({ title, author, chapters }) {
+  const zip = new JSZip();
+  const uid = 'urn:uuid:' + crypto.randomUUID();
+  const now = new Date().toISOString().split('T')[0];
+
+  // 1. mimetype — must be first and uncompressed
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+
+  // 2. META-INF/container.xml
+  zip.folder('META-INF').file('container.xml', `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+
+  const oebps = zip.folder('OEBPS');
+
+  // 3. Stylesheet
+  oebps.file('style.css', `
+body { font-family: Georgia, serif; font-size: 1em; line-height: 1.6; margin: 1em 2em; }
+h1 { font-size: 1.4em; margin-top: 2em; margin-bottom: 1em; page-break-before: always; }
+h2 { font-size: 1.2em; margin-top: 1.5em; }
+p { margin: 0.5em 0; text-indent: 1.5em; }
+p:first-of-type { text-indent: 0; }
+
+/* Title page */
+.title-page { text-align: center; margin-top: 6em; }
+.title-page h1 { font-size: 2em; margin-bottom: 0.4em; page-break-before: auto; border: none; }
+.title-page .author { font-size: 1.2em; color: #444; margin-top: 0.8em; }
+.title-page .rule { border: none; border-top: 1px solid #999; width: 40%; margin: 1.5em auto; }
+
+/* TOC page */
+.toc-page h1 { font-size: 1.4em; margin-bottom: 1em; page-break-before: auto; }
+.toc-page ol { list-style: none; padding: 0; margin: 0; }
+.toc-page li { padding: 0.4em 0; border-bottom: 1px solid #eee; }
+.toc-page li a { text-decoration: none; color: #1a1a18; font-size: 0.95em; }
+.toc-page li a:hover { text-decoration: underline; }
+.toc-page .ch-num { color: #888; margin-right: 0.8em; font-size: 0.85em; }
+`);
+
+  // 4. Title page
+  oebps.file('titlepage.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${escXml(title)}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <div class="title-page">
+    <h1>${escXml(title)}</h1>
+    <hr class="rule"/>
+    <p class="author">${escXml(author)}</p>
+  </div>
+</body>
+</html>`);
+
+  // 5. Chapter XHTML files
+  const chapterFiles = chapters.map((ch, i) => {
+    const id = `chapter_${String(i+1).padStart(3,'0')}`;
+    const filename = `${id}.xhtml`;
+    const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${escXml(ch.title)}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <h1>${escXml(ch.title)}</h1>
+  ${ch.html}
+</body>
+</html>`;
+    oebps.file(filename, xhtml);
+    return { id, filename, title: ch.title };
+  });
+
+  // 6. Visible TOC page (readable page, not just nav metadata)
+  const tocPageItems = chapterFiles.map((c, i) =>
+    `<li><span class="ch-num">${String(i+1).padStart(2,'0')}</span><a href="${c.filename}">${escXml(c.title)}</a></li>`
+  ).join('\n        ');
+
+  oebps.file('tocpage.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Table of Contents</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <div class="toc-page">
+    <h1>Table of Contents</h1>
+    <ol>
+        ${tocPageItems}
+    </ol>
+  </div>
+</body>
+</html>`);
+
+  // 7. content.opf — title page and toc page first in spine
+  const manifestItems = chapterFiles.map(c =>
+    `<item id="${c.id}" href="${c.filename}" media-type="application/xhtml+xml"/>`
+  ).join('\n    ');
+  const spineItems = chapterFiles.map(c =>
+    `<itemref idref="${c.id}"/>`
+  ).join('\n    ');
+
+  oebps.file('content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">${uid}</dc:identifier>
+    <dc:title>${escXml(title)}</dc:title>
+    <dc:creator>${escXml(author)}</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:date>${now}</dc:date>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</meta>
+  </metadata>
+  <manifest>
+    <item id="css" href="style.css" media-type="text/css"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="titlepage" href="titlepage.xhtml" media-type="application/xhtml+xml"/>
+    <item id="tocpage" href="tocpage.xhtml" media-type="application/xhtml+xml"/>
+    ${manifestItems}
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="titlepage"/>
+    <itemref idref="tocpage"/>
+    ${spineItems}
+  </spine>
+</package>`);
+
+  // 8. toc.ncx (for older readers) — includes title page and toc page
+  const ncxNavPoints = [
+    `\n    <navPoint id="nav_titlepage" playOrder="1">
+      <navLabel><text>${escXml(title)}</text></navLabel>
+      <content src="titlepage.xhtml"/>
+    </navPoint>`,
+    `\n    <navPoint id="nav_tocpage" playOrder="2">
+      <navLabel><text>Table of Contents</text></navLabel>
+      <content src="tocpage.xhtml"/>
+    </navPoint>`,
+    ...chapterFiles.map((c, i) => `
+    <navPoint id="nav_${c.id}" playOrder="${i+3}">
+      <navLabel><text>${escXml(c.title)}</text></navLabel>
+      <content src="${c.filename}"/>
+    </navPoint>`)
+  ].join('');
+
+  oebps.file('toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="${uid}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle><text>${escXml(title)}</text></docTitle>
+  <navMap>${ncxNavPoints}
+  </navMap>
+</ncx>`);
+
+  // 9. nav.xhtml (epub3 navigation document)
+  const navItems = chapterFiles.map(c =>
+    `<li><a href="${c.filename}">${escXml(c.title)}</a></li>`
+  ).join('\n      ');
+
+  oebps.file('nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><meta charset="UTF-8"/><title>Table of Contents</title>
+<link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <nav epub:type="toc">
+    <h1>Table of Contents</h1>
+    <ol>
+      ${navItems}
+    </ol>
+  </nav>
+</body>
+</html>`);
+
+  // Generate the zip blob
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/epub+zip',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 }
+  });
+
+  return blob;
+}
+
+function escXml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────
+let selectedFile = null;
+let extractedChapters = [];
+
+const fileInput     = document.getElementById('fileInput');
+const dropZone      = document.getElementById('dropZone');
+const dropPrimary   = document.getElementById('dropPrimary');
+const dropSecondary = document.getElementById('dropSecondary');
+const dropFileName  = document.getElementById('dropFileName');
+const convertBtn    = document.getElementById('convertBtn');
+const statusMsg     = document.getElementById('statusMsg');
+const chapterPreview = document.getElementById('chapterPreview');
+const chapterList   = document.getElementById('chapterList');
+const chapterCount  = document.getElementById('chapterCount');
+const progressWrap  = document.getElementById('progressWrap');
+const progressBar   = document.getElementById('progressBar');
+const downloadZone  = document.getElementById('downloadZone');
+const downloadBtn   = document.getElementById('downloadBtn');
+const dlFilename    = document.getElementById('dlFilename');
+const dlMeta        = document.getElementById('dlMeta');
+
+// ─────────────────────────────────────────────────────────
+// FILE HANDLING
+// ─────────────────────────────────────────────────────────
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+async function handleFile(file) {
+  if (!file || !file.name.endsWith('.docx')) {
+    showStatus('error', 'Please select a .docx file.');
+    return;
+  }
+  selectedFile = file;
+  dropZone.classList.add('has-file');
+  dropPrimary.style.display = 'none';
+  dropSecondary.style.display = 'none';
+  dropFileName.style.display = 'block';
+  dropFileName.textContent = file.name;
+
+  showStatus('working', '<span class="working-dot">■</span> Reading document structure…');
+  try {
+    const chapters = await extractChapters(file);
+    extractedChapters = chapters;
+    renderChapterPreview(chapters);
+    showStatus('success', `Found ${chapters.length} chapter${chapters.length !== 1 ? 's' : ''}. Ready to convert.`);
+    checkReady();
+  } catch(err) {
+    showStatus('error', 'Could not read file: ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// MAMMOTH EXTRACTION + CHAPTER SPLIT
+// ─────────────────────────────────────────────────────────
+async function extractChapters(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const arrayBuffer = e.target.result;
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const html = result.value;
+
+        // Parse HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const nodes = Array.from(doc.body.childNodes);
+
+        const chapters = [];
+        let current = null;
+        let buffer = [];
+
+        for (const node of nodes) {
+          const tag = node.tagName ? node.tagName.toLowerCase() : '';
+          if (tag === 'h1') {
+            if (current !== null) {
+              chapters.push({ title: current, html: buffer.join('') });
+            }
+            current = node.textContent.trim();
+            buffer = [];
+          } else {
+            if (current === null) {
+              // Content before first H1 — treat as front matter chapter
+              if (node.textContent.trim()) {
+                current = 'Front Matter';
+              }
+            }
+            buffer.push(node.outerHTML || `<p>${node.textContent}</p>`);
+          }
+        }
+        // Last chapter
+        if (current !== null) {
+          chapters.push({ title: current, html: buffer.join('') });
+        }
+
+        // If no H1s found, put everything in one chapter
+        if (chapters.length === 0) {
+          chapters.push({ title: 'Untitled', html });
+        }
+
+        resolve(chapters);
+      } catch(err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('FileReader failed'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function renderChapterPreview(chapters) {
+  chapterList.innerHTML = '';
+  chapters.forEach((ch, i) => {
+    const div = document.createElement('div');
+    div.className = 'chapter-item';
+    div.innerHTML = `<span class="ch-num">${String(i+1).padStart(2,'0')}</span><span>${ch.title}</span>`;
+    chapterList.appendChild(div);
+  });
+  chapterCount.textContent = `${chapters.length} found`;
+  chapterPreview.style.display = 'block';
+}
+
+// ─────────────────────────────────────────────────────────
+// FORM READINESS
+// ─────────────────────────────────────────────────────────
+document.getElementById('bookTitle').addEventListener('input', checkReady);
+document.getElementById('authorName').addEventListener('input', checkReady);
+
+function checkReady() {
+  const title = document.getElementById('bookTitle').value.trim();
+  const author = document.getElementById('authorName').value.trim();
+  convertBtn.disabled = !(title && author && selectedFile && extractedChapters.length > 0);
+}
+
+// ─────────────────────────────────────────────────────────
+// CONVERSION
+// ─────────────────────────────────────────────────────────
+convertBtn.addEventListener('click', async () => {
+  const title = document.getElementById('bookTitle').value.trim();
+  const author = document.getElementById('authorName').value.trim();
+
+  convertBtn.disabled = true;
+  downloadZone.classList.remove('visible');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '10%';
+  showStatus('working', '<span class="working-dot">■</span> Building epub…');
+
+  try {
+    progressBar.style.width = '40%';
+
+    const blob = await buildEpub({ title, author, chapters: extractedChapters });
+
+    progressBar.style.width = '70%';
+
+    progressBar.style.width = '95%';
+    const url = URL.createObjectURL(blob);
+    const safeName = title.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    const filename = `${safeName}.epub`;
+
+    progressBar.style.width = '100%';
+
+    // Wire up download button
+    downloadBtn.href = url;
+    downloadBtn.download = filename;
+    dlFilename.textContent = filename;
+    dlMeta.textContent = `${extractedChapters.length} chapters  ·  ${(blob.size / 1024).toFixed(0)} KB`;
+
+    downloadZone.classList.add('visible');
+    showStatus('success', 'Conversion complete. Download your epub below.');
+
+  } catch(err) {
+    progressBar.style.width = '0%';
+    showStatus('error', 'Conversion failed: ' + err.message);
+    convertBtn.disabled = false;
+    console.error(err);
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────
+function showStatus(type, msg) {
+  statusMsg.className = 'status-msg ' + type;
+  statusMsg.innerHTML = msg;
+}
+</script>
+</body>
+</html>
